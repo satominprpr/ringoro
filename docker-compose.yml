@@ -1,0 +1,17 @@
+version: '3.1'
+
+services:
+  web:
+    build:
+      context: ./web
+    container_name: ringoro-web
+    working_dir: /app
+    volumes:
+      - ./web:/app
+      - ./web/target/.registry:/usr/local/cargo/registry
+      - ./web/target/.cache:/usr/local/cargo/cache
+    environment:
+      - CARGO_TARGET_DIR=/app/target
+    command: cargo watch -x run
+    ports:
+      - 8080:8080
