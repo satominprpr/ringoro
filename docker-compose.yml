@@ -11,24 +11,25 @@ services:
       - ./web/target/.registry:/usr/local/cargo/registry
       - ./web/target/.cache:/usr/local/cargo/cache
     environment:
-      - CARGO_TARGET_DIR=/app/target
+      CARGO_TARGET_DIR: /app/target
     command: "cargo watch -x 'fmt -- --check' -x 'clippy --all-targets --all-features -- -D warnings' -x run"
     ports:
       - 8080:8080
     expose:
       - 8080
-  it: &it
+  test-base: &test-base
     build:
       context: ./test
     working_dir: /work
     volumes:
       - ./test:/work
-    environment:
-      - BUNDLE_PATH=/work/.bundle
     depends_on:
       - web
     tty: true
     stdin_open: true
   apitest:
-    <<: *it
+    <<: *test-base
     container_name: ringoro-integration-test
+    environment:
+      HOST: web
+      PORT: '8080'

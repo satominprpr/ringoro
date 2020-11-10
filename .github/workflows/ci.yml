@@ -4,19 +4,27 @@ env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
 jobs:
-  lint-web:
-    name: 'Lint Rust code'
+  backend-test:
+    name: 'Server side test'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build and up image
+      - name: Build and setup 
         run: |
-          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
-          docker-compose -f docker-compose.ci.yml up -d web
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 apiserver apitest
+          docker-compose -f docker-compose.ci.yml run --rm -T apitest bundle install
       - name: Run fmt
         run: |
-          docker-compose -f docker-compose.ci.yml exec -T web cargo fmt -- --check
+          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo fmt -- --check
       - name: Run clippy
         run: |
-          docker-compose -f docker-compose.ci.yml exec -T web cargo clippy
+          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo clippy
+      - name: Build
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo build
+      - name: Run API test
+        run: |
+          docker-compose -f docker-compose.ci.yml up -d apiserver apitest
+          docker-compose -f docker-compose.ci.yml exec -T apitest /wait
+          docker-compose -f docker-compose.ci.yml exec -T apitest bundle exec rake api

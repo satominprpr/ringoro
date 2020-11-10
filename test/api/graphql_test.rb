@@ -2,7 +2,7 @@ require_relative 'test_helper'
 
 class GraphqlTest < Minitest::Test
   def entry_point
-    'http://web:8080/graphql'
+    "http://#{ENV['HOST']}:#{ENV['PORT']}/graphql"
   end
 
   def test_human

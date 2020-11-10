@@ -1,7 +1,7 @@
 version: '3.1'
 
 services:
-  web:
+  web-base: &web-base
     build:
       context: ./web
     container_name: ringoro-web
@@ -12,5 +12,28 @@ services:
       - CARGO_TARGET_DIR=/app/target
     expose:
       - 8080
+  test-base: &test-base
+    build:
+      context: ./test
+    container_name: ringoro-integration-test
+    working_dir: /work
+    volumes:
+      - ./test:/work
+  web:
+    <<: *web-base
+    tty: true
+    stdin_open: true
+  apiserver:
+    <<: *web-base
+    command: cargo run
+  apitest:
+    <<: *test-base
+    depends_on:
+      - apiserver
+    environment:
+      WAIT_HOSTS: apiserver:8080
+      WAIT_HOSTS_TIMEOUT: 60
+      HOST: apiserver
+      PORT: '8080'
     tty: true
     stdin_open: true
