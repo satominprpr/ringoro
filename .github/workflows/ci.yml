@@ -1,0 +1,22 @@
+name: CI
+on: push
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+jobs:
+  lint-web:
+    name: 'Lint Rust code'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build and up image
+        run: |
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
+          docker-compose -f docker-compose.ci.yml up -d web
+      - name: Run fmt
+        run: |
+          docker-compose -f docker-compose.ci.yml exec -T web cargo fmt -- --check
+      - name: Run clippy
+        run: |
+          docker-compose -f docker-compose.ci.yml exec -T web cargo clippy

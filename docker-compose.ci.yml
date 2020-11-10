@@ -1,0 +1,16 @@
+version: '3.1'
+
+services:
+  web:
+    build:
+      context: ./web
+    container_name: ringoro-web
+    working_dir: /app
+    volumes:
+      - ./web:/app
+    environment:
+      - CARGO_TARGET_DIR=/app/target
+    expose:
+      - 8080
+    tty: true
+    stdin_open: true
