@@ -1,0 +1,4 @@
+guard :minitest, test_folders: 'api', test_file_patterns: '*_test.rb' do
+  watch(%r{^api/(.*)\/?(.*)_test\.rb$})
+  watch(%r{^api/test_helper.rb$}) { 'api' }
+end
