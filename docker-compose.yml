@@ -12,6 +12,6 @@ services:
       - ./web/target/.cache:/usr/local/cargo/cache
     environment:
       - CARGO_TARGET_DIR=/app/target
-    command: cargo watch -x run
+    command: "cargo watch -x 'fmt -- --check' -x 'clippy --all-targets --all-features -- -D warnings' -x run"
     ports:
       - 8080:8080
