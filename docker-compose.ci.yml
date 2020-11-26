@@ -1,33 +1,58 @@
 version: '3.1'
 
 services:
+  mongo:
+    image: mongo:4
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    expose:
+      - 27017
+    volumes:
+      - ./db:/data/db
+      - ./configdb:/data/configdb
   web-base: &web-base
     build:
-      context: ./web
-    container_name: ringoro-web
-    working_dir: /app
+      context: ./rust
+    working_dir: /app/web
     volumes:
-      - ./web:/app
-    environment:
-      - CARGO_TARGET_DIR=/app/target
+      - ./rust:/app
+      - ./rust/target/.registry:/usr/local/cargo/registry
+      - ./rust/target/.cache:/usr/local/cargo/cache
+    environment: &rust-environment
+      CARGO_TARGET_DIR: /app/target
+      RINGORO_DB_URI: 'mongodb://root:password@mongo:27017'
+      RINGORO_DB_DATABASE: 'ringoro-dev'
+      MONGO_TEST_URI: 'mongodb://root:password@mongo:27017'
+      MONGO_TEST_DATABASE: 'ringoro-unittest'
     expose:
       - 8080
   test-base: &test-base
     build:
       context: ./test
-    container_name: ringoro-integration-test
     working_dir: /work
     volumes:
       - ./test:/work
   web:
     <<: *web-base
+    container_name: ringoro-ci-web
     tty: true
     stdin_open: true
   apiserver:
     <<: *web-base
-    command: cargo run
+    container_name: ringoro-ci-apiserver
+    command: sh -c '/wait && cargo run'
+    depends_on:
+      - mongo
+    environment:
+      <<: *rust-environment
+      RINGORO_HOST: 'apiserver'
+      RINGORO_PORT: '8080'
+      WAIT_HOSTS: mongo:27017
+      WAIT_HOSTS_TIMEOUT: 60
   apitest:
     <<: *test-base
+    container_name: ringoro-ci-integration-test
     depends_on:
       - apiserver
     environment:

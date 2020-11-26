@@ -1,23 +1,55 @@
 version: '3.1'
 
 services:
-  web:
-    build:
-      context: ./web
-    container_name: ringoro-web
-    working_dir: /app
-    volumes:
-      - ./web:/app
-      - ./web/target/.registry:/usr/local/cargo/registry
-      - ./web/target/.cache:/usr/local/cargo/cache
+  mongo:
+    image: mongo:4
     environment:
-      CARGO_TARGET_DIR: /app/target
-    command: "cargo watch -x 'fmt -- --check' -x 'clippy --all-targets --all-features -- -D warnings' -x run"
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    expose:
+      - 27017
+    volumes:
+      - ./db:/data/db
+      - ./configdb:/data/configdb
+  mongo-express:
+    image: mongo-express
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+    depends_on:
+      - mongo
+  web-base: &web-base
+    build:
+      context: ./rust
+    container_name: ringoro-web
+    working_dir: /app/web
+    volumes:
+      - ./rust:/app
+      - ./rust/target/.registry:/usr/local/cargo/registry
+      - ./rust/target/.cache:/usr/local/cargo/cache
+  web:
+    <<: *web-base
+    environment:
+      RINGORO_HOST: 'web'
+      RINGORO_PORT: '8080'
+      RINGORO_DB_URI: 'mongodb://root:password@mongo:27017'
+      RINGORO_DB_DATABASE: 'ringoro-dev'
+      MONGO_TEST_URI: 'mongodb://root:password@mongo:27017'
+      MONGO_TEST_DATABASE: 'ringoro-unittest'
+    command: >
+      cargo watch -x 'fmt -- --check'
+                  -x 'clippy --all-targets --all-features -- -D warnings'
+                  -x test
+                  -x run
     ports:
       - 8080:8080
     expose:
       - 8080
-  test-base: &test-base
+    depends_on:
+      - mongo-express
+  test-client-base: &test-client-base
     build:
       context: ./test
     working_dir: /work
@@ -27,9 +59,11 @@ services:
       - web
     tty: true
     stdin_open: true
+    depends_on:
+      - mongo
   apitest:
-    <<: *test-base
-    container_name: ringoro-integration-test
+    <<: *test-client-base
+    container_name: ringoro-api-test
     environment:
       HOST: web
       PORT: '8080'

@@ -1,6 +1,8 @@
 use juniper::FieldResult;
 use juniper::RootNode;
 
+use crate::mongo::Context;
+
 #[derive(GraphQLEnum)]
 enum Episode {
     NewHope,
@@ -29,9 +31,9 @@ struct NewHuman {
 
 pub struct QueryRoot;
 
-#[juniper::object]
+#[juniper::object(Context=Context,)]
 impl QueryRoot {
-    fn human(id: String) -> FieldResult<Human> {
+    fn human(id: String, context: &Context) -> FieldResult<Human> {
         Ok(Human {
             id: "1234".to_owned(),
             name: "Luke".to_owned(),
@@ -43,9 +45,9 @@ impl QueryRoot {
 
 pub struct MutationRoot;
 
-#[juniper::object]
+#[juniper::object(Context=Context,)]
 impl MutationRoot {
-    fn create_human(new_human: NewHuman) -> FieldResult<Human> {
+    fn create_human(new_human: NewHuman, context: &Context) -> FieldResult<Human> {
         Ok(Human {
             id: "1234".to_owned(),
             name: new_human.name,

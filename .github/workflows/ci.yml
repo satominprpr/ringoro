@@ -16,15 +16,22 @@ jobs:
           docker-compose -f docker-compose.ci.yml run --rm -T apitest bundle install
       - name: Run fmt
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo fmt -- --check
+          docker-compose -f docker-compose.ci.yml run --rm web cargo fmt -- --check
       - name: Run clippy
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo clippy
+          docker-compose -f docker-compose.ci.yml run --rm web cargo clippy
       - name: Build
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm apiserver cargo build
+          docker-compose -f docker-compose.ci.yml run --rm web cargo build
+      - name: Run unit test
+        run: |
+          docker-compose -f docker-compose.ci.yml up -d web mongo web
+          docker-compose -f docker-compose.ci.yml exec -T web /wait
+          docker-compose -f docker-compose.ci.yml exec -T web cargo test
+          docker-compose -f docker-compose.ci.yml down
       - name: Run API test
         run: |
           docker-compose -f docker-compose.ci.yml up -d apiserver apitest
           docker-compose -f docker-compose.ci.yml exec -T apitest /wait
           docker-compose -f docker-compose.ci.yml exec -T apitest bundle exec rake api
+          docker-compose -f docker-compose.ci.yml down

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "web",
+]
+
+[patch.crates-io]
+ringoro-web = { path = "./web" }
