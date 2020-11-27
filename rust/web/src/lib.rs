@@ -1,5 +1,5 @@
 pub mod config;
-pub mod graphql_bind;
+pub mod fcomps;
 pub mod mongo;
 pub mod result;
 pub mod schema;

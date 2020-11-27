@@ -11,6 +11,92 @@ pub trait Definer<In, Out, Ctx> {
     fn def(input: &In, context: &Ctx) -> Result<Out>;
 }
 
+pub struct Effect<Def, In, Out, Ctx>
+where
+    Def: Definer<In, Out, Ctx>,
+{
+    result: Result<Out>,
+    #[allow(clippy::type_complexity)]
+    p: PhantomData<fn() -> (In, Def, Ctx)>,
+}
+
+impl<Def, In, Out, Ctx> Callable<In, Out, Ctx> for Effect<Def, In, Out, Ctx>
+where
+    Def: Definer<In, Out, Ctx>,
+{
+    #[inline]
+    fn call(input: &In, context: &Ctx) -> Self {
+        Self {
+            result: Def::def(input, context),
+            p: PhantomData,
+        }
+    }
+
+    #[inline]
+    fn result(&self) -> Result<&Out> {
+        match &self.result {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.clone()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod effect_test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    pub fn effect<Def, In, Out, Ctx>(
+        _def: Def,
+        input: &In,
+        context: &Ctx,
+    ) -> Effect<Def, In, Out, Ctx>
+    where
+        Def: Definer<In, Out, Ctx>,
+    {
+        Effect::<Def, In, Out, Ctx>::call(input, context)
+    }
+
+    struct In(i8);
+
+    #[derive(Debug, PartialEq)]
+    struct Out(i8, i8);
+    struct Ctx(i8);
+
+    struct EffectDefSuccess {}
+
+    impl Definer<In, Out, Ctx> for EffectDefSuccess {
+        fn def(i: &In, c: &Ctx) -> Result<Out> {
+            Ok(Out(i.0, c.0))
+        }
+    }
+
+    struct EffectDefFail {}
+
+    impl Definer<In, Out, Ctx> for EffectDefFail {
+        fn def(i: &In, c: &Ctx) -> Result<Out> {
+            use std::io::*;
+            Err(Error::new(ErrorKind::Other, format!("{}, {}", i.0, c.0)).into())
+        }
+    }
+
+    #[test]
+    fn test_effect_define_with_success() {
+        let i = In(1);
+        let c = Ctx(2);
+        let runner = effect(EffectDefSuccess {}, &i, &c);
+        assert_eq!(Out(1, 2), *runner.result().unwrap());
+    }
+
+    #[test]
+    fn test_effect_define_with_error() {
+        let i = In(1);
+        let c = Ctx(2);
+        let runner = effect(EffectDefFail {}, &i, &c);
+        assert_eq!("1, 2", format!("{}", runner.result().unwrap_err()));
+    }
+}
+
 pub struct Composit<F, G, In, Mid, Out, Ctx>
 where
     F: Callable<Mid, Out, Ctx>,
@@ -43,36 +129,6 @@ where
     fn result(&self) -> Result<&Out> {
         match &self.result {
             Ok((f, _)) => f.result(),
-            Err(e) => Err(e.clone()),
-        }
-    }
-}
-
-pub struct Effect<Def, In, Out, Ctx>
-where
-    Def: Definer<In, Out, Ctx>,
-{
-    result: Result<Out>,
-    #[allow(clippy::type_complexity)]
-    p: PhantomData<fn() -> (In, Def, Ctx)>,
-}
-
-impl<Def, In, Out, Ctx> Callable<In, Out, Ctx> for Effect<Def, In, Out, Ctx>
-where
-    Def: Definer<In, Out, Ctx>,
-{
-    #[inline]
-    fn call(input: &In, context: &Ctx) -> Self {
-        Self {
-            result: Def::def(input, context),
-            p: PhantomData,
-        }
-    }
-
-    #[inline]
-    fn result(&self) -> Result<&Out> {
-        match &self.result {
-            Ok(v) => Ok(v),
             Err(e) => Err(e.clone()),
         }
     }
@@ -196,61 +252,5 @@ mod comosit_test {
                 *CompositFailOnG::call(&input, &ctx).result().unwrap_err()
             )
         );
-    }
-}
-
-#[cfg(test)]
-mod effect_test {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    pub fn effect<Def, In, Out, Ctx>(
-        _def: Def,
-        input: &In,
-        context: &Ctx,
-    ) -> Effect<Def, In, Out, Ctx>
-    where
-        Def: Definer<In, Out, Ctx>,
-    {
-        Effect::<Def, In, Out, Ctx>::call(input, context)
-    }
-
-    struct In(i8);
-
-    #[derive(Debug, PartialEq)]
-    struct Out(i8, i8);
-    struct Ctx(i8);
-
-    struct EffectDefSuccess {}
-
-    impl Definer<In, Out, Ctx> for EffectDefSuccess {
-        fn def(i: &In, c: &Ctx) -> Result<Out> {
-            Ok(Out(i.0, c.0))
-        }
-    }
-
-    struct EffectDefFail {}
-
-    impl Definer<In, Out, Ctx> for EffectDefFail {
-        fn def(i: &In, c: &Ctx) -> Result<Out> {
-            use std::io::*;
-            Err(Error::new(ErrorKind::Other, format!("{}, {}", i.0, c.0)).into())
-        }
-    }
-
-    #[test]
-    fn test_effect_define_with_success() {
-        let i = In(1);
-        let c = Ctx(2);
-        let runner = effect(EffectDefSuccess {}, &i, &c);
-        assert_eq!(Out(1, 2), *runner.result().unwrap());
-    }
-
-    #[test]
-    fn test_effect_define_with_error() {
-        let i = In(1);
-        let c = Ctx(2);
-        let runner = effect(EffectDefFail {}, &i, &c);
-        assert_eq!("1, 2", format!("{}", runner.result().unwrap_err()));
     }
 }
