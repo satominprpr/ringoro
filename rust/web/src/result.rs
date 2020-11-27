@@ -63,4 +63,7 @@ pub enum ErrorKind {
 
     #[error(display = "{}", _0)]
     Env(#[error(source)] std::env::VarError),
+
+    #[error(display = "{}", _0)]
+    Validate(#[error(source)] validator::ValidationErrors),
 }
