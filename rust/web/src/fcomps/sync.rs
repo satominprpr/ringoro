@@ -1,19 +1,19 @@
 use async_trait::async_trait;
 
-use crate::result::Result;
+use crate::result::{Error, Result};
 
 #[async_trait(?Send)]
-pub trait Callable {
+pub trait ACallable {
     type In;
     type Out;
     type Ctx;
 
-    async fn call(input: &Self::In, context: &Self::Ctx) -> Self;
+    async fn apply(input: &Self::In, context: &Self::Ctx) -> Self;
     fn result(&self) -> Result<&Self::Out>;
 }
 
 #[async_trait(?Send)]
-pub trait Definer {
+pub trait ADefiner {
     type In;
     type Out;
     type Ctx;
@@ -21,23 +21,23 @@ pub trait Definer {
     async fn def(input: &Self::In, context: &Self::Ctx) -> Result<Self::Out>;
 }
 
-pub struct Effect<Def>
+pub struct AEffect<Def>
 where
-    Def: Definer,
+    Def: ADefiner,
 {
-    result: Result<<Def as Definer>::Out>,
+    result: Result<<Def as ADefiner>::Out>,
 }
 
 #[async_trait(?Send)]
-impl<Def> Callable for Effect<Def>
+impl<Def> ACallable for AEffect<Def>
 where
-    Def: Definer,
+    Def: ADefiner,
 {
-    type In = <Def as Definer>::In;
-    type Out = <Def as Definer>::Out;
-    type Ctx = <Def as Definer>::Ctx;
+    type In = <Def as ADefiner>::In;
+    type Out = <Def as ADefiner>::Out;
+    type Ctx = <Def as ADefiner>::Ctx;
 
-    async fn call(input: &Self::In, context: &Self::Ctx) -> Self {
+    async fn apply(input: &Self::In, context: &Self::Ctx) -> Self {
         Self {
             result: Def::def(input, context).await,
         }
@@ -53,7 +53,7 @@ where
 }
 
 #[cfg(test)]
-mod effect_test {
+mod aeffect_test {
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -63,10 +63,10 @@ mod effect_test {
     struct Out(i8, i8);
     struct Ctx(i8);
 
-    struct EffectDefSuccess {}
+    struct AEffectDefSuccess {}
 
     #[async_trait(?Send)]
-    impl Definer for EffectDefSuccess {
+    impl ADefiner for AEffectDefSuccess {
         type In = In;
         type Out = Out;
         type Ctx = Ctx;
@@ -76,10 +76,10 @@ mod effect_test {
         }
     }
 
-    struct EffectDefFail {}
+    struct AEffectDefFail {}
 
     #[async_trait(?Send)]
-    impl Definer for EffectDefFail {
+    impl ADefiner for AEffectDefFail {
         type In = In;
         type Out = Out;
         type Ctx = Ctx;
@@ -94,7 +94,7 @@ mod effect_test {
     async fn test_effect_define_with_success() {
         let i = In(1);
         let c = Ctx(2);
-        let runner = Effect::<EffectDefSuccess>::call(&i, &c).await;
+        let runner = AEffect::<AEffectDefSuccess>::apply(&i, &c).await;
         assert_eq!(Out(1, 2), *runner.result().unwrap());
     }
 
@@ -102,7 +102,176 @@ mod effect_test {
     async fn test_effect_define_with_error() {
         let i = In(1);
         let c = Ctx(2);
-        let runner = Effect::<EffectDefFail>::call(&i, &c).await;
+        let runner = AEffect::<AEffectDefFail>::apply(&i, &c).await;
         assert_eq!("1, 2", format!("{}", runner.result().unwrap_err()));
+    }
+}
+
+pub struct AComposit<F, G>
+where
+    F: ACallable,
+    G: ACallable<Out = <F as ACallable>::In, Ctx = <F as ACallable>::Ctx>,
+{
+    result: std::result::Result<(F, G), Error>,
+}
+
+#[async_trait(?Send)]
+impl<F, G> ACallable for AComposit<F, G>
+where
+    F: ACallable,
+    G: ACallable<Out = <F as ACallable>::In, Ctx = <F as ACallable>::Ctx>,
+{
+    type In = <G as ACallable>::In;
+    type Out = <F as ACallable>::Out;
+    type Ctx = <F as ACallable>::Ctx;
+
+    async fn apply(input: &Self::In, context: &Self::Ctx) -> Self {
+        let g = G::apply(input, context).await;
+        let result = match g.result() {
+            Ok(r) => Ok((F::apply(r, context).await, g)),
+            Err(e) => Err(e),
+        };
+        Self { result }
+    }
+
+    fn result(&self) -> Result<&Self::Out> {
+        match &self.result {
+            Ok((f, _)) => f.result(),
+            Err(e) => Err(e.clone()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod acomosit_test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    struct In(i8);
+    struct Mid(i8, i8);
+
+    #[derive(Debug, PartialEq)]
+    struct Out(i8, i8, i8);
+    struct Ctx(i8);
+
+    struct DefFSuccess {}
+
+    #[async_trait(?Send)]
+    impl ADefiner for DefFSuccess {
+        type In = Mid;
+        type Out = Out;
+        type Ctx = Ctx;
+        async fn def(i: &Mid, c: &Ctx) -> Result<Out> {
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
+            Ok(Out(i.0, i.1, c.0))
+        }
+    }
+
+    struct DefFFail {}
+
+    #[async_trait(?Send)]
+    impl ADefiner for DefFFail {
+        type In = Mid;
+        type Out = Out;
+        type Ctx = Ctx;
+        async fn def(i: &Mid, c: &Ctx) -> Result<Out> {
+            use std::io::*;
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
+            Err(Error::new(ErrorKind::Other, format!("{}, {}, {}", i.0, i.1, c.0)).into())
+        }
+    }
+
+    struct DefFPanic {}
+
+    #[async_trait(?Send)]
+    impl ADefiner for DefFPanic {
+        type In = Mid;
+        type Out = Out;
+        type Ctx = Ctx;
+        async fn def(_: &Mid, _: &Ctx) -> Result<Out> {
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
+            panic!()
+        }
+    }
+
+    struct DefGSuccess {}
+
+    #[async_trait(?Send)]
+    impl ADefiner for DefGSuccess {
+        type In = In;
+        type Out = Mid;
+        type Ctx = Ctx;
+        async fn def(i: &In, c: &Ctx) -> Result<Mid> {
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
+            Ok(Mid(i.0, c.0))
+        }
+    }
+
+    struct DefGFail {}
+
+    #[async_trait(?Send)]
+    impl ADefiner for DefGFail {
+        type In = In;
+        type Out = Mid;
+        type Ctx = Ctx;
+        async fn def(i: &In, c: &Ctx) -> Result<Mid> {
+            use std::io::*;
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
+            Err(Error::new(ErrorKind::Other, format!("{}, {}", i.0, c.0)).into())
+        }
+    }
+
+    type ACompositSuccess = AComposit<AEffect<DefFSuccess>, AEffect<DefGSuccess>>;
+
+    #[tokio::test]
+    async fn test_composit_successed() {
+        let input = In(1);
+        let ctx = Ctx(10);
+
+        assert_eq!(
+            Out(1, 10, 10),
+            *ACompositSuccess::apply(&input, &ctx)
+                .await
+                .result()
+                .unwrap()
+        );
+    }
+
+    type ACompositFailOnF = AComposit<AEffect<DefFFail>, AEffect<DefGSuccess>>;
+
+    #[tokio::test]
+    async fn test_composit_error_on_f() {
+        let input = In(1);
+        let ctx = Ctx(10);
+
+        assert_eq!(
+            "1, 10, 10",
+            format!(
+                "{}",
+                *ACompositFailOnF::apply(&input, &ctx)
+                    .await
+                    .result()
+                    .unwrap_err()
+            )
+        );
+    }
+
+    type ACompositFailOnG = AComposit<AEffect<DefFPanic>, AEffect<DefGFail>>;
+
+    #[tokio::test]
+    async fn test_composit_error_on_g() {
+        let input = In(1);
+        let ctx = Ctx(10);
+
+        assert_eq!(
+            "1, 10",
+            format!(
+                "{}",
+                *ACompositFailOnG::apply(&input, &ctx)
+                    .await
+                    .result()
+                    .unwrap_err()
+            )
+        );
     }
 }
