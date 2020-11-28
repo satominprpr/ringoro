@@ -1,7 +1,7 @@
-FROM rust:1.47.0-alpine3.12
+FROM rust:1.47.0-slim
 
-RUN apk update -qq &&\
-    apk add --no-cache musl-dev mongodb-tools &&\
+RUN apt-get update &&\
+    apt-get upgrade &&\
     rustup update &&\
     rustup component add clippy rustfmt &&\
     cargo install cargo-watch
