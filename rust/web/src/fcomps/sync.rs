@@ -275,3 +275,65 @@ mod acomosit_test {
         );
     }
 }
+
+use crate::fcomps::core::Callable;
+
+struct Lift<F>
+where
+    F: Callable,
+{
+    f: F,
+}
+
+#[async_trait(?Send)]
+impl<F> ACallable for Lift<F>
+where
+    F: Callable,
+{
+    type In = <F as Callable>::In;
+    type Out = <F as Callable>::Out;
+    type Ctx = <F as Callable>::Ctx;
+
+    async fn apply(i: &Self::In, ctx: &Self::Ctx) -> Self {
+        Self {
+            f: F::apply(i, ctx),
+        }
+    }
+
+    fn result(&self) -> Result<&Self::Out> {
+        self.f.result()
+    }
+}
+
+#[cfg(test)]
+mod test_lift {
+    use pretty_assertions::assert_eq;
+
+    use crate::fcomps::core::{Definer, Effect};
+    use crate::result::Result;
+
+    use super::{ACallable, Lift};
+
+    type In = i8;
+    type Out = (i8, i8);
+    type Ctx = i8;
+
+    struct D {}
+    impl Definer for D {
+        type In = In;
+        type Out = Out;
+        type Ctx = Ctx;
+
+        fn def(i: &In, ctx: &Ctx) -> Result<Out> {
+            Ok((*i, *ctx))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_lift() {
+        assert_eq!(
+            (1i8, 2i8),
+            *Lift::<Effect<D>>::apply(&1i8, &2i8).await.result().unwrap()
+        );
+    }
+}
