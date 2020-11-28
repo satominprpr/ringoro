@@ -5,7 +5,7 @@ pub trait Callable {
     type Out;
     type Ctx;
 
-    fn call(input: &Self::In, context: &Self::Ctx) -> Self;
+    fn apply(input: &Self::In, context: &Self::Ctx) -> Self;
     fn result(&self) -> Result<&Self::Out>;
 }
 
@@ -33,7 +33,7 @@ where
     type Ctx = <Def as Definer>::Ctx;
 
     #[inline]
-    fn call(input: &Self::In, context: &Self::Ctx) -> Self {
+    fn apply(input: &Self::In, context: &Self::Ctx) -> Self {
         Self {
             result: Def::def(input, context),
         }
@@ -86,7 +86,7 @@ mod effect_test {
     fn test_effect_define_with_success() {
         let i = In(1);
         let c = Ctx(2);
-        let runner = Effect::<EffectDefSuccess>::call(&i, &c);
+        let runner = Effect::<EffectDefSuccess>::apply(&i, &c);
         assert_eq!(Out(1, 2), *runner.result().unwrap());
     }
 
@@ -94,7 +94,7 @@ mod effect_test {
     fn test_effect_define_with_error() {
         let i = In(1);
         let c = Ctx(2);
-        let runner = Effect::<EffectDefFail>::call(&i, &c);
+        let runner = Effect::<EffectDefFail>::apply(&i, &c);
         assert_eq!("1, 2", format!("{}", runner.result().unwrap_err()));
     }
 }
@@ -117,10 +117,10 @@ where
     type Ctx = <F as Callable>::Ctx;
 
     #[inline]
-    fn call(input: &Self::In, context: &Self::Ctx) -> Self {
-        let g = G::call(input, context);
+    fn apply(input: &Self::In, context: &Self::Ctx) -> Self {
+        let g = G::apply(input, context);
         let result = match g.result() {
-            Ok(r) => Ok((F::call(r, context), g)),
+            Ok(r) => Ok((F::apply(r, context), g)),
             Err(e) => Err(e),
         };
         Self { result }
@@ -213,7 +213,7 @@ mod comosit_test {
 
         assert_eq!(
             Out(1, 10, 10),
-            *CompositSuccess::call(&input, &ctx).result().unwrap()
+            *CompositSuccess::apply(&input, &ctx).result().unwrap()
         );
     }
 
@@ -228,7 +228,7 @@ mod comosit_test {
             "1, 10, 10",
             format!(
                 "{}",
-                *CompositFailOnF::call(&input, &ctx).result().unwrap_err()
+                *CompositFailOnF::apply(&input, &ctx).result().unwrap_err()
             )
         );
     }
@@ -244,7 +244,7 @@ mod comosit_test {
             "1, 10",
             format!(
                 "{}",
-                *CompositFailOnG::call(&input, &ctx).result().unwrap_err()
+                *CompositFailOnG::apply(&input, &ctx).result().unwrap_err()
             )
         );
     }
