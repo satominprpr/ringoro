@@ -4,9 +4,11 @@ use actix_cors::Cors;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use juniper::http::GraphQLRequest;
 
-use crate::config::Config;
-use crate::mongo::Context;
-use crate::schema::{create_schema, Schema};
+use crate::{
+    context::{Context, MongoContext},
+    schema::{create_schema, Schema},
+    utils::{config::Config, result::Result},
+};
 
 struct GraphqlAppData {
     schema: Schema,
@@ -16,7 +18,7 @@ struct GraphqlAppData {
 async fn graphql(
     st: web::Data<Arc<GraphqlAppData>>,
     data: web::Json<GraphQLRequest>,
-) -> Result<HttpResponse, Error> {
+) -> std::result::Result<HttpResponse, Error> {
     let user = web::block(move || {
         let res = data.execute(&st.schema, &st.context);
         Ok::<_, serde_json::error::Error>(serde_json::to_string(&res)?)
@@ -27,16 +29,16 @@ async fn graphql(
         .body(user))
 }
 
-pub async fn run() -> std::io::Result<()> {
+pub async fn run() -> Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=trace");
     env_logger::init();
 
     let config = Config::from_env()?;
-    let context = Context::new(&config).await?;
+    let context = Context::new(MongoContext::new(&config).await?);
     let schema = create_schema();
     let data = Arc::new(GraphqlAppData { schema, context });
 
-    HttpServer::new(move || {
+    Ok(HttpServer::new(move || {
         App::new()
             .data(Arc::clone(&data))
             .wrap(middleware::Logger::default())
@@ -51,5 +53,5 @@ pub async fn run() -> std::io::Result<()> {
     })
     .bind(config.bind_name())?
     .run()
-    .await
+    .await?)
 }

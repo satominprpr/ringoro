@@ -1,7 +1,7 @@
 FROM rust:1.47.0-slim
 
-RUN apt-get update &&\
-    apt-get upgrade &&\
+RUN apt-get update -y &&\
+    apt-get upgrade -y &&\
     rustup update &&\
     rustup component add clippy rustfmt &&\
     cargo install cargo-watch

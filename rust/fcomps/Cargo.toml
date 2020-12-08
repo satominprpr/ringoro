@@ -1,0 +1,16 @@
+[package]
+name = "ringoro-fcomps"
+version = "0.1.0"
+authors = ["tman <satominprpr@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+frunk = "0.3"
+ringoro-utils = { path = "../utils" }
+thiserror = "1.0"
+tokio = { version = "0.2.23", features = ["full"] }
+
+[dev-dependencies]
+pretty_assertions = "0.6"

@@ -27,7 +27,7 @@ jobs:
         run: |
           docker-compose -f docker-compose.ci.yml up -d web mongo web
           docker-compose -f docker-compose.ci.yml exec -T web /wait
-          docker-compose -f docker-compose.ci.yml exec -T web cargo test
+          docker-compose -f docker-compose.ci.yml exec -T web cargo test --all -- --test-threads=1
           docker-compose -f docker-compose.ci.yml down
       - name: Run API test
         run: |

@@ -1,23 +1,20 @@
 [package]
-name = "ringoro-web"
+name = "ringoro-mongo"
 version = "0.1.0"
 authors = ["tman <satominprpr@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 ringoro-utils = { path = "../utils" }
-ringoro-mongo = { path = "../mongo" }
 ringoro-fcomps = { path = "../fcomps" }
-actix-web = "3"
-actix-cors = "0.4"
 async-trait = "0.1"
-env_logger = "0.7.1"
-juniper = "0.14"
 mongodb = "1.1"
 mongodm = "0.4"
+serde = "1.0"
 tokio = { version = "0.2", features = ["full"] }
-serde_json = "1.0"
+validator = "0.11"
+futures = "0.3"
 
 [dev-dependencies]
-async_once = "0.2"
+once_cell = "1.5"
 pretty_assertions = "0.6"

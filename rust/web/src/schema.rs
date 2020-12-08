@@ -1,7 +1,7 @@
 use juniper::FieldResult;
 use juniper::RootNode;
 
-use crate::mongo::Context;
+use crate::context::Context;
 
 #[derive(GraphQLEnum)]
 enum Episode {

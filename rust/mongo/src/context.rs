@@ -3,8 +3,11 @@ use mongodm::{
     Model, Repository, ToRepository,
 };
 
-use crate::config::Config;
-use crate::result::Result;
+use crate::utils::{config::Config, result::Result};
+
+pub trait MongodmContext {
+    fn repo<M: Model>(&self) -> Repository<M>;
+}
 
 pub struct Context {
     client: Client,
@@ -31,16 +34,18 @@ impl Context {
         })
     }
 
+    #[inline]
     pub fn database(&self) -> Database {
         self.client.database(&self.database_name)
     }
+}
 
-    pub fn repo<M>(&self) -> Repository<M>
+impl MongodmContext for Context {
+    #[inline]
+    fn repo<M>(&self) -> Repository<M>
     where
         M: Model,
     {
         self.database().repository::<M>()
     }
 }
-
-impl juniper::Context for Context {}

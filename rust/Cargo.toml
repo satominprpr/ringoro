@@ -1,7 +1,13 @@
 [workspace]
 members = [
   "web",
+  "fcomps",
+  "utils",
+  "mongo",
 ]
 
 [patch.crates-io]
 ringoro-web = { path = "./web" }
+ringoro-fcomps = { path = "./fcomps" }
+ringoro-utils = { path = "./utils" }
+ringoro-mongo = { path = "./mongo" }
