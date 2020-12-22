@@ -19,14 +19,11 @@ async fn graphql(
     st: web::Data<Arc<GraphqlAppData>>,
     data: web::Json<GraphQLRequest>,
 ) -> std::result::Result<HttpResponse, Error> {
-    let user = web::block(move || {
-        let res = data.execute(&st.schema, &st.context);
-        Ok::<_, serde_json::error::Error>(serde_json::to_string(&res)?)
-    })
-    .await?;
+    let res = data.execute(&st.schema, &st.context).await;
+    let result = serde_json::to_string(&res)?;
     Ok(HttpResponse::Ok()
         .content_type("application/json")
-        .body(user))
+        .body(result))
 }
 
 pub async fn run() -> Result<()> {

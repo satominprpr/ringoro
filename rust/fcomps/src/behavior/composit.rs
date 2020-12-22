@@ -23,10 +23,11 @@ where
     type Out = <F as Behavior>::Out;
     type Ctx = <F as Behavior>::Ctx;
 
-    async fn apply(input: &Self::In, ctx: &Self::Ctx) -> Self {
+    #[inline]
+    async fn apply(input: Self::In, ctx: &Self::Ctx) -> Self {
         let g = G::apply(input, ctx).await;
         let result = match g.result() {
-            Ok(r) => Ok(F::apply(&r, ctx).await),
+            Ok(r) => Ok(F::apply(r, ctx).await),
             Err(e) => Err(e),
         };
         Self {
@@ -35,6 +36,7 @@ where
         }
     }
 
+    #[inline]
     fn result(self) -> Result<Self::Out> {
         match self.result {
             Ok(f) => f.result(),
@@ -48,7 +50,7 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::behavior::{Effect, EffectDef};
+    use crate::behavior::{Behave, BehaveDef};
 
     struct In(i8);
     struct Mid(i8, i8);
@@ -60,11 +62,11 @@ mod test {
     struct DefFSuccess {}
 
     #[async_trait(?Send)]
-    impl EffectDef for DefFSuccess {
+    impl BehaveDef for DefFSuccess {
         type In = Mid;
         type Out = Out;
         type Ctx = Ctx;
-        async fn def(i: &Mid, c: &Ctx) -> Result<Out> {
+        async fn def(i: Mid, c: &Ctx) -> Result<Out> {
             tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
             Ok(Out(i.0, i.1, c.0))
         }
@@ -73,11 +75,11 @@ mod test {
     struct DefFFail {}
 
     #[async_trait(?Send)]
-    impl EffectDef for DefFFail {
+    impl BehaveDef for DefFFail {
         type In = Mid;
         type Out = Out;
         type Ctx = Ctx;
-        async fn def(i: &Mid, c: &Ctx) -> Result<Out> {
+        async fn def(i: Mid, c: &Ctx) -> Result<Out> {
             use std::io::*;
             tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
             Err(Error::new(ErrorKind::Other, format!("{}, {}, {}", i.0, i.1, c.0)).into())
@@ -87,11 +89,11 @@ mod test {
     struct DefFPanic {}
 
     #[async_trait(?Send)]
-    impl EffectDef for DefFPanic {
+    impl BehaveDef for DefFPanic {
         type In = Mid;
         type Out = Out;
         type Ctx = Ctx;
-        async fn def(_: &Mid, _: &Ctx) -> Result<Out> {
+        async fn def(_: Mid, _: &Ctx) -> Result<Out> {
             tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
             panic!()
         }
@@ -100,11 +102,11 @@ mod test {
     struct DefGSuccess {}
 
     #[async_trait(?Send)]
-    impl EffectDef for DefGSuccess {
+    impl BehaveDef for DefGSuccess {
         type In = In;
         type Out = Mid;
         type Ctx = Ctx;
-        async fn def(i: &In, c: &Ctx) -> Result<Mid> {
+        async fn def(i: In, c: &Ctx) -> Result<Mid> {
             tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
             Ok(Mid(i.0, c.0))
         }
@@ -113,18 +115,18 @@ mod test {
     struct DefGFail {}
 
     #[async_trait(?Send)]
-    impl EffectDef for DefGFail {
+    impl BehaveDef for DefGFail {
         type In = In;
         type Out = Mid;
         type Ctx = Ctx;
-        async fn def(i: &In, c: &Ctx) -> Result<Mid> {
+        async fn def(i: In, c: &Ctx) -> Result<Mid> {
             use std::io::*;
             tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
             Err(Error::new(ErrorKind::Other, format!("{}, {}", i.0, c.0)).into())
         }
     }
 
-    type CompositSuccess = Composit<Effect<DefFSuccess>, Effect<DefGSuccess>>;
+    type CompositSuccess = Composit<Behave<DefFSuccess>, Behave<DefGSuccess>>;
 
     #[tokio::test]
     async fn test_composit_successed() {
@@ -133,11 +135,11 @@ mod test {
 
         assert_eq!(
             Out(1, 10, 10),
-            CompositSuccess::apply(&input, &ctx).await.result().unwrap()
+            CompositSuccess::apply(input, &ctx).await.result().unwrap()
         );
     }
 
-    type CompositFailOnF = Composit<Effect<DefFFail>, Effect<DefGSuccess>>;
+    type CompositFailOnF = Composit<Behave<DefFFail>, Behave<DefGSuccess>>;
 
     #[tokio::test]
     async fn test_composit_error_on_f() {
@@ -148,7 +150,7 @@ mod test {
             "1, 10, 10",
             format!(
                 "{}",
-                CompositFailOnF::apply(&input, &ctx)
+                CompositFailOnF::apply(input, &ctx)
                     .await
                     .result()
                     .unwrap_err()
@@ -156,7 +158,7 @@ mod test {
         );
     }
 
-    type CompositFailOnG = Composit<Effect<DefFPanic>, Effect<DefGFail>>;
+    type CompositFailOnG = Composit<Behave<DefFPanic>, Behave<DefGFail>>;
 
     #[tokio::test]
     async fn test_composit_error_on_g() {
@@ -167,7 +169,7 @@ mod test {
             "1, 10",
             format!(
                 "{}",
-                CompositFailOnG::apply(&input, &ctx)
+                CompositFailOnG::apply(input, &ctx)
                     .await
                     .result()
                     .unwrap_err()

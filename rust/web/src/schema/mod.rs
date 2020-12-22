@@ -1,5 +1,7 @@
-use juniper::FieldResult;
-use juniper::RootNode;
+use juniper::{
+    graphql_object, EmptySubscription, FieldResult, GraphQLEnum, GraphQLInputObject, GraphQLObject,
+    RootNode,
+};
 
 use crate::context::Context;
 
@@ -9,8 +11,6 @@ enum Episode {
     Empire,
     Jedi,
 }
-
-use juniper::{GraphQLEnum, GraphQLInputObject, GraphQLObject};
 
 #[derive(GraphQLObject)]
 #[graphql(description = "A humanoid creature in the Star Wars universe")]
@@ -31,9 +31,9 @@ struct NewHuman {
 
 pub struct QueryRoot;
 
-#[juniper::object(Context=Context,)]
+#[graphql_object(Context=Context)]
 impl QueryRoot {
-    fn human(id: String, context: &Context) -> FieldResult<Human> {
+    fn human(_id: String, _context: &Context) -> FieldResult<Human> {
         Ok(Human {
             id: "1234".to_owned(),
             name: "Luke".to_owned(),
@@ -45,9 +45,9 @@ impl QueryRoot {
 
 pub struct MutationRoot;
 
-#[juniper::object(Context=Context,)]
+#[graphql_object(Context=Context,)]
 impl MutationRoot {
-    fn create_human(new_human: NewHuman, context: &Context) -> FieldResult<Human> {
+    fn create_human(new_human: NewHuman, _context: &Context) -> FieldResult<Human> {
         Ok(Human {
             id: "1234".to_owned(),
             name: new_human.name,
@@ -57,8 +57,8 @@ impl MutationRoot {
     }
 }
 
-pub type Schema = RootNode<'static, QueryRoot, MutationRoot>;
+pub type Schema = RootNode<'static, QueryRoot, MutationRoot, EmptySubscription<Context>>;
 
 pub fn create_schema() -> Schema {
-    Schema::new(QueryRoot {}, MutationRoot {})
+    Schema::new(QueryRoot {}, MutationRoot {}, EmptySubscription::new())
 }

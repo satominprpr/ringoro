@@ -1,0 +1,11 @@
+---
+fonts:
+  default: MatissePro-M
+contents:
+  common:
+    each: "—"
+  index:
+    hoge: ほげ
+  errors:
+    picureUploadInvalidFileType: "このファイルは扱うことが出来ません"
+    picureUploadInvalidFileSize: "ファイルが大きすぎます"

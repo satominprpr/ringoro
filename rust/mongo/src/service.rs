@@ -1,69 +1,198 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use mongodm::{mongo::bson::doc, operator::ToObjectId, Model};
-use serde::{Deserialize, Serialize};
+use bson::Document;
+use mongodm::mongo::options::FindOptions;
 
 use crate::{
-    context::MongodmContext, fcomp::behavior::EffectDef, result::Result, validator::Validate,
+    fcomps::{
+        behavior::{Behave, BehaveDef},
+        convert::Convertible,
+        service::*,
+    },
+    utils::result::Result,
+    withid::{
+        ConvertModelWithIdCursor, ConvertibleStream, Id, ModelWithIdCursor, RepositoryWithId,
+        WithId,
+    },
 };
 
-#[async_trait(?Send)]
-pub trait MongodmValidate {
-    async fn validate_on_create(&self, ctx: &impl MongodmContext) -> Result<()>;
-    async fn validate_on_update(&self, ctx: &impl MongodmContext) -> Result<()>;
-}
-
-pub struct CreateServiceDefine<'a, M, Ctx>
+pub struct WithIdCreateBehavorDef<Repo>
 where
-    M: Serialize + Deserialize<'a> + Validate + MongodmValidate,
-    Ctx: MongodmContext,
+    Repo: RepositoryWithId,
 {
-    p: PhantomData<fn() -> (M, Ctx)>,
+    p: PhantomData<fn() -> Repo>,
 }
 
 #[async_trait(?Send)]
-impl<'a, M, Ctx> EffectDef for CreateServiceDefine<'a, M, Ctx>
+impl<Repo> BehaveDef for WithIdCreateBehavorDef<Repo>
 where
-    M: Serialize + Deserialize<'a> + Validate + MongodmValidate,
-    Ctx: MongodmContext,
+    Repo: RepositoryWithId,
 {
-    type In = M;
-    type Out = ();
-    type Ctx = Ctx;
+    type In = Repo::Model;
+    type Out = Id;
+    type Ctx = Repo::Ctx;
 
-    async fn def(input: &Self::In, ctx: &Self::Ctx) -> Result<()> {
-        input.validate()?;
-        input.validate_on_create(ctx).await?;
-        ctx.repo::<M>().insert_one(input, None).await?;
-        Ok(())
+    #[inline]
+    async fn def(input: Self::In, ctx: &Self::Ctx) -> Result<Self::Out> {
+        <Repo as RepositoryWithId>::new(ctx)
+            .await
+            .create(&input)
+            .await
     }
 }
 
-struct UpdateServiceDefine<'a, M, Ctx>
+pub struct WithIdUpdateBehavorDef<Repo>
 where
-    M: Serialize + Deserialize<'a> + Validate + MongodmValidate,
-    Ctx: MongodmContext,
+    Repo: RepositoryWithId,
 {
-    p: PhantomData<fn() -> (M, Ctx)>,
+    p: PhantomData<fn() -> Repo>,
 }
 
 #[async_trait(?Send)]
-impl<'a, M, Ctx> EffectDef for UpdateServiceDefine<'a, M, Ctx>
+impl<Repo> BehaveDef for WithIdUpdateBehavorDef<Repo>
 where
-    M: Serialize + Deserialize<'a> + Validate + MongodmValidate,
-    Ctx: MongodmContext,
+    Repo: RepositoryWithId,
 {
-    type In = (String, M);
+    type In = WithId<Repo::Model>;
     type Out = ();
-    type Ctx = Ctx;
+    type Ctx = Repo::Ctx;
 
-    async fn def(input: &Self::In, ctx: &Self::Ctx) -> Result<()> {
-        input.1.validate()?;
-        input.1.validate_on_create(ctx).await?;
-        ctx.repo::<M>()
-            .replace_one(doc! { "_id": {ToObjectId: &input.0}}, &input.1, None)
-            .await?;
-        Ok(())
+    #[inline]
+    async fn def(input: Self::In, ctx: &Self::Ctx) -> Result<Self::Out> {
+        <Repo as RepositoryWithId>::new(ctx)
+            .await
+            .update(&input)
+            .await
+    }
+}
+
+pub struct DeleteId(pub Id);
+
+pub struct WithIdDeleteBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    p: PhantomData<fn() -> Repo>,
+}
+
+#[async_trait(?Send)]
+impl<Repo> BehaveDef for WithIdDeleteBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    type In = DeleteId;
+    type Out = ();
+    type Ctx = Repo::Ctx;
+
+    #[inline]
+    async fn def(input: Self::In, ctx: &Self::Ctx) -> Result<Self::Out> {
+        <Repo as RepositoryWithId>::new(ctx)
+            .await
+            .delete(&input.0)
+            .await
+    }
+}
+
+pub struct FindOneArgument(pub Document, pub Option<FindOptions>);
+
+pub struct WithIdFindOneBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    p: PhantomData<fn() -> Repo>,
+}
+
+#[async_trait(?Send)]
+impl<Repo> BehaveDef for WithIdFindOneBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    type In = FindOneArgument;
+    type Out = Option<WithId<Repo::Model>>;
+    type Ctx = Repo::Ctx;
+
+    #[inline]
+    async fn def(input: Self::In, ctx: &Self::Ctx) -> Result<Self::Out> {
+        <Repo as RepositoryWithId>::new(ctx)
+            .await
+            .find_one(input.0)
+            .await
+    }
+}
+
+pub struct FindManyArgument(pub Document, pub Option<FindOptions>);
+
+pub struct WithIdFindManyBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    p: PhantomData<fn() -> Repo>,
+}
+
+#[async_trait(?Send)]
+impl<Repo> BehaveDef for WithIdFindManyBehavorDef<Repo>
+where
+    Repo: RepositoryWithId,
+{
+    type In = FindManyArgument;
+    type Out = ModelWithIdCursor<Repo::Model>;
+    type Ctx = Repo::Ctx;
+
+    #[inline]
+    async fn def(input: Self::In, ctx: &Self::Ctx) -> Result<Self::Out> {
+        <Repo as RepositoryWithId>::new(ctx)
+            .await
+            .find_many(input.0, input.1)
+            .await
+    }
+}
+
+pub type ConvertCursur<T, F> = ConvertibleStream<T, ModelWithIdCursor<F>>;
+
+pub struct WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
+where
+    Repo: RepositoryWithId,
+{
+    #[allow(clippy::type_complexity)]
+    p: PhantomData<fn() -> (Repo, In, Out, OnFindOneIn, OnFindManyIn)>,
+}
+
+impl<Repo, In, Out, OnFindOneIn, OnFindManyIn> CRUDBehaviors
+    for WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
+where
+    Repo: RepositoryWithId,
+    WithId<Repo::Model>: Convertible<Out>,
+{
+    type Ctx = Repo::Ctx;
+    type OnCreateIn = In;
+    type OnUpdateIn = WithId<In>;
+    type OnDeleteIn = Id;
+    type OnFindOneIn = OnFindOneIn;
+    type OnFindManyIn = OnFindManyIn;
+    type OnFindOneOut = Option<Out>;
+    type OnFindManyOut = ConvertModelWithIdCursor<Out, Repo::Model>;
+    type OnCreate = Behave<WithIdCreateBehavorDef<Repo>>;
+    type OnUpdate = Behave<WithIdUpdateBehavorDef<Repo>>;
+    type OnDelete = Behave<WithIdDeleteBehavorDef<Repo>>;
+    type OnFindOne = Behave<WithIdFindOneBehavorDef<Repo>>;
+    type OnFindMany = Behave<WithIdFindManyBehavorDef<Repo>>;
+}
+
+pub type WithIdCRUDService<
+    Repo,
+    In,
+    Out,
+    OnFindOneIn,
+    OnFindManyIn,
+    BeforeFilter = EmptyHook<<Repo as RepositoryWithId>::Ctx>,
+> = CRUDSevice<
+    SimpleCRUDServiceDef<WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>, BeforeFilter>,
+>;
+
+impl Convertible<DeleteId> for WithHookResult<(), Id> {
+    #[inline]
+    fn convert(self) -> Result<DeleteId> {
+        Ok(DeleteId(self.1))
     }
 }

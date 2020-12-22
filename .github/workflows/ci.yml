@@ -3,26 +3,72 @@ on: push
 env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
+  IMAGE_CACHE_DIR: images
+  RUST_IMAGE_TAG: ringoro-rust-image:0.1.0
+  RUST_IMAGE_CACHE_TAG: ringoro-rust-image-cache
+  RUST_IMAGE_CACHE: images/ringoro-rust-image.tar
 jobs:
-  backend-test:
-    name: 'Server side test'
+  image-cache-or-build:
+    name: 'Build and cache docker image'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build and setup 
+      - name: Cache Docker images
+        id: docker_image_cache_id
+        uses: actions/cache@v2
+        with:
+          path: images
+          key: docker-image-${{ hashFiles(format('{0}{1}', github.workspace, '/rust/Dockerfile')) }}
+      - name: Build
+        if: steps.docker_image_cache_id.outputs.cache-hit != 'true'
         run: |
-          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 apiserver apitest
-          docker-compose -f docker-compose.ci.yml run --rm -T apitest bundle install
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
+      - name: Docker tag and save
+        if: steps.docker_image_cache_id.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ${IMAGE_CACHE_DIR}
+          docker image tag ${RUST_IMAGE_TAG} ${RUST_IMAGE_CACHE_TAG}
+          docker image save -o ${RUST_IMAGE_CACHE} ${RUST_IMAGE_CACHE_TAG}
+  backend-test:
+    name: 'Server side test'
+    runs-on: ubuntu-latest
+    needs: image-cache-or-build
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          config: |
+            Host ${{ secrets.SSH_HOST }}
+              User ${{ secrets.SSH_USER }}
+              Port ${{ secrets.SSH_PORT }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Cache Docker images
+        id: docker_image_cache_id
+        uses: actions/cache@v2
+        with:
+          path: images
+          key: docker-image-${{ hashFiles(format('{0}{1}', github.workspace, '/rust/Dockerfile')) }}
+      - name: Docker load
+        if: steps.docker_image_cache_id.outputs.cache-hit == 'true'
+        run: docker image load -i ${RUST_IMAGE_CACHE}
+      - name: Build image
+        run: |
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
+      - name: Display status from deploy
+        run: echo "${{ steps.deploy.outputs.status }}"
       - name: Run fmt
         run: |
           docker-compose -f docker-compose.ci.yml run --rm web cargo fmt -- --check
-      - name: Run clippy
-        run: |
-          docker-compose -f docker-compose.ci.yml run --rm web cargo clippy
       - name: Build
         run: |
           docker-compose -f docker-compose.ci.yml run --rm web cargo build
+      - name: Run clippy
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm web cargo clippy
       - name: Run unit test
         run: |
           docker-compose -f docker-compose.ci.yml up -d web mongo web
@@ -32,6 +78,24 @@ jobs:
       - name: Run API test
         run: |
           docker-compose -f docker-compose.ci.yml up -d apiserver apitest
+          docker-compose -f docker-compose.ci.yml exec -T apitest bundle install
           docker-compose -f docker-compose.ci.yml exec -T apitest /wait
           docker-compose -f docker-compose.ci.yml exec -T apitest bundle exec rake api
+          docker-compose -f docker-compose.ci.yml down
+  frontend-test:
+    name: 'Front side test'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Cache node_modules
+        id: node_modules_cache_id
+        uses: actions/cache@v2
+        with:
+          path: js/node_modules
+          key: node-cache-${{ hashFiles(format('{0}{1}', github.workspace, '/js/yarn.lock')) }}
+      - name: Run unit test
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm -T frontend yarn install
+          docker-compose -f docker-compose.ci.yml run --rm -T frontend yarn unittest
           docker-compose -f docker-compose.ci.yml down

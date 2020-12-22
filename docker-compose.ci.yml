@@ -14,7 +14,10 @@ services:
   web-base: &web-base
     build:
       context: ./rust
-    working_dir: /app/web
+      cache_from:
+        - ringoro-rust-image-cache
+    image: ringoro-rust-image:0.1.0
+    working_dir: /app
     volumes:
       - ./rust:/app
       - ./rust/target/.registry:/usr/local/cargo/registry
@@ -27,6 +30,12 @@ services:
       MONGO_TEST_DATABASE: 'ringoro-unittest'
     expose:
       - 8080
+  js-base: &js-base
+    build:
+      context: ./js
+    working_dir: /app
+    volumes:
+      - ./js:/app
   test-base: &test-base
     build:
       context: ./test
@@ -50,6 +59,9 @@ services:
       RINGORO_PORT: '8080'
       WAIT_HOSTS: mongo:27017
       WAIT_HOSTS_TIMEOUT: 60
+  frontend:
+    <<: *js-base
+    container_name: ringoro-ci-frontend
   apitest:
     <<: *test-base
     container_name: ringoro-ci-integration-test

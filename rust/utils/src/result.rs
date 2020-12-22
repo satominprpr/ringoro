@@ -1,7 +1,7 @@
 pub use anyhow;
 pub type Result<T> = anyhow::Result<T>;
 pub type Error = anyhow::Error;
-pub type StdResult<T, E> = std::result::Result<T, E>;
+pub use std::result::Result as StdResult;
 
 #[inline]
 pub fn raise<T, Error>(err: Error) -> self::Result<T>

@@ -1,14 +1,15 @@
 use async_trait::async_trait;
 use std::marker::PhantomData;
 
-use crate::behavior::Behavior;
-use crate::core::Callable;
-use crate::result::Result;
+use crate::{
+    behavior::Behavior,
+    core::{validate::Identity, Callable},
+    result::Result,
+};
 
-struct Lift<F, Ctx>
+pub struct Lift<F, Ctx>
 where
     F: Callable,
-    F::In: Clone,
 {
     f: F,
     p: PhantomData<fn() -> Ctx>,
@@ -18,29 +19,32 @@ where
 impl<F, Ctx> Behavior for Lift<F, Ctx>
 where
     F: Callable,
-    F::In: Clone,
 {
     type In = F::In;
     type Out = F::Out;
     type Ctx = Ctx;
 
-    async fn apply(i: &Self::In, _ctx: &Self::Ctx) -> Self {
+    #[inline]
+    async fn apply(i: Self::In, _ctx: &Self::Ctx) -> Self {
         Self {
-            f: F::apply(i.clone()),
+            f: F::apply(i),
             p: PhantomData,
         }
     }
 
+    #[inline]
     fn result(self) -> Result<Self::Out> {
         self.f.result()
     }
 }
 
+pub type NoBehave<T, Ctx> = Lift<Identity<T>, Ctx>;
+
 #[cfg(test)]
 mod test_lift {
     use pretty_assertions::assert_eq;
 
-    use crate::core::{RefCall, RefDef};
+    use crate::core::{Call, Def};
 
     use super::*;
 
@@ -52,11 +56,11 @@ mod test_lift {
     struct Ctx();
 
     struct D {}
-    impl RefDef for D {
+    impl Def for D {
         type In = In;
         type Out = Out;
 
-        fn def(i: &In) -> Result<Out> {
+        fn def(i: In) -> Result<Out> {
             Ok(Out(i.0))
         }
     }
@@ -65,7 +69,7 @@ mod test_lift {
     async fn test_lift() {
         assert_eq!(
             Out(1),
-            Lift::<RefCall<D>, Ctx>::apply(&In(1), &Ctx {})
+            Lift::<Call<D>, Ctx>::apply(In(1), &Ctx {})
                 .await
                 .result()
                 .unwrap()

@@ -23,14 +23,20 @@ services:
   web-base: &web-base
     build:
       context: ./rust
-    container_name: ringoro-web
     working_dir: /app
     volumes:
       - ./rust:/app
       - ./rust/target/.registry:/usr/local/cargo/registry
       - ./rust/target/.cache:/usr/local/cargo/cache
+  js-base: &js-base
+    build:
+      context: ./js
+    working_dir: /app
+    volumes:
+      - ./js:/app
   web:
     <<: *web-base
+    container_name: ringoro-web
     environment:
       RINGORO_HOST: 'web'
       RINGORO_PORT: '8080'
@@ -49,6 +55,14 @@ services:
       - 8080
     depends_on:
       - mongo-express
+  frontend:
+    <<: *js-base
+    depends_on: [web]
+    ports:
+      - 3000:3000
+    expose:
+      - 3000
+    command: sh -c "rm -f .bsb.lock && yarn dev"
   test-client-base: &test-client-base
     build:
       context: ./test

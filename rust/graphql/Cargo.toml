@@ -1,0 +1,14 @@
+[package]
+name = "ringoro-graphql"
+version = "0.1.0"
+authors = ["tman <satominprpr@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+ringoro-utils = { path = "../utils" }
+ringoro-mongo = { path = "../mongo" }
+ringoro-fcomps = { path = "../fcomps" }
+
+[dev-dependencies]
+pretty_assertions = "0.6"
+tokio = { version = "0.2", features = ["full"] }

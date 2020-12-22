@@ -1,0 +1,36 @@
+{
+  "name": "with-reasonml",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
+    "dev:reason": "bsb -clean-world -make-world -w",
+    "dev:next": "next dev",
+    "build": "bsb -clean-world -make-world && next build",
+    "start": "next start",
+    "unittest": "yarn build && jest",
+    "unittest:watch": "concurrently \"bsb -clean-world -make-world -w\" \"jest --watchAll\""
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@jsiebern/bs-material-ui": "^2.0.2",
+    "bs-fetch": "^0.6.2",
+    "bs-webapi": "^0.19.1",
+    "next": "latest",
+    "next-transpile-modules": "^4.0.2",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "reason-react": "^0.9.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.12.7",
+    "@glennsl/bs-jest": "^0.6.0",
+    "bs-platform": "^8.3.1",
+    "concurrently": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "js-yaml-loader": "^1.2.2",
+    "jsdom": "^16.4.0",
+    "mime-types": "^2.1.27",
+    "reason-hooks-testing-library": "^0.2.1"
+  }
+}
