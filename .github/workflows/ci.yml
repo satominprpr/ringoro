@@ -23,7 +23,7 @@ jobs:
       - name: Build
         if: steps.docker_image_cache_id.outputs.cache-hit != 'true'
         run: |
-          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web-unittest
       - name: Docker tag and save
         if: steps.docker_image_cache_id.outputs.cache-hit != 'true'
         run: |
@@ -57,30 +57,36 @@ jobs:
         run: docker image load -i ${RUST_IMAGE_CACHE}
       - name: Build image
         run: |
-          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web
+          docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 web-unittest
       - name: Display status from deploy
         run: echo "${{ steps.deploy.outputs.status }}"
       - name: Run fmt
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm web cargo fmt -- --check
+          docker-compose -f docker-compose.ci.yml run --rm web-unittest cargo fmt -- --check
       - name: Build
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm web cargo build
+          docker-compose -f docker-compose.ci.yml run --rm web-unittest cargo build
       - name: Run clippy
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm web cargo clippy
+          docker-compose -f docker-compose.ci.yml run --rm web-unittest cargo clippy
       - name: Run unit test
         run: |
-          docker-compose -f docker-compose.ci.yml up -d web mongo web
-          docker-compose -f docker-compose.ci.yml exec -T web /wait
-          docker-compose -f docker-compose.ci.yml exec -T web cargo test --all -- --test-threads=1
+          docker-compose -f docker-compose.ci.yml up -d web-unittest mongo redis
+          docker-compose -f docker-compose.ci.yml exec -T web-unittest /wait
+          docker-compose -f docker-compose.ci.yml exec -T web-unittest cargo test --all -- --test-threads=1
           docker-compose -f docker-compose.ci.yml down
+      - name: Cache node_modules
+        id: node_modules_cache_id
+        uses: actions/cache@v2
+        with:
+          path: js/apitest/node_modules
+          key: node-cache-${{ hashFiles(format('{0}{1}', github.workspace, '/js/apitest/yarn.lock')) }}
       - name: Run API test
         run: |
           docker-compose -f docker-compose.ci.yml up -d apiserver apitest
-          docker-compose -f docker-compose.ci.yml exec -T apitest bundle install
           docker-compose -f docker-compose.ci.yml exec -T apitest /wait
-          docker-compose -f docker-compose.ci.yml exec -T apitest bundle exec rake api
+          docker-compose -f docker-compose.ci.yml exec -T apitest yarn install
+          docker-compose -f docker-compose.ci.yml exec -T apitest yarn test
           docker-compose -f docker-compose.ci.yml down
   frontend-test:
     name: 'Front side test'
@@ -92,10 +98,10 @@ jobs:
         id: node_modules_cache_id
         uses: actions/cache@v2
         with:
-          path: js/node_modules
-          key: node-cache-${{ hashFiles(format('{0}{1}', github.workspace, '/js/yarn.lock')) }}
+          path: js/frontend/node_modules
+          key: node-cache-${{ hashFiles(format('{0}{1}', github.workspace, '/js/frontend/yarn.lock')) }}
       - name: Run unit test
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm -T frontend yarn install
-          docker-compose -f docker-compose.ci.yml run --rm -T frontend yarn unittest
+          docker-compose -f docker-compose.ci.yml run --rm -T frontend-unittest yarn install
+          docker-compose -f docker-compose.ci.yml run --rm -T frontend-unittest yarn unittest
           docker-compose -f docker-compose.ci.yml down

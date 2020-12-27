@@ -75,18 +75,18 @@ where
 
 pub trait CRUDBehaviors {
     type Ctx;
-    type OnCreateIn;
-    type OnUpdateIn;
-    type OnDeleteIn;
-    type OnFindOneIn;
-    type OnFindManyIn;
-    type OnFindOneOut;
-    type OnFindManyOut;
-    type OnCreate: Behavior<Ctx = Self::Ctx>;
-    type OnUpdate: Behavior<Ctx = Self::Ctx>;
-    type OnDelete: Behavior<Ctx = Self::Ctx>;
-    type OnFindOne: Behavior<Ctx = Self::Ctx>;
-    type OnFindMany: Behavior<Ctx = Self::Ctx>;
+    type CreateIn;
+    type UpdateIn;
+    type DeleteIn;
+    type FindOneIn;
+    type FindManyIn;
+    type FindOneOut;
+    type FindManyOut;
+    type Create: Behavior<Ctx = Self::Ctx>;
+    type Update: Behavior<Ctx = Self::Ctx>;
+    type Delete: Behavior<Ctx = Self::Ctx>;
+    type FindOne: Behavior<Ctx = Self::Ctx>;
+    type FindMany: Behavior<Ctx = Self::Ctx>;
 }
 
 pub trait CRUDHook {
@@ -121,10 +121,10 @@ pub struct SimpleCRUDServiceDef<
 > where
     Behaviors: CRUDBehaviors,
     BeforeFilter: CRUDHook<Ctx = <Behaviors as CRUDBehaviors>::Ctx>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnCreateIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnCreate as Behavior>::In>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnUpdateIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnUpdate as Behavior>::In>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::CreateIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::Create as Behavior>::In>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::UpdateIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::Update as Behavior>::In>,
 {
     #[allow(clippy::type_complexity)]
     p: PhantomData<fn() -> (Behaviors, BeforeFilter)>,
@@ -134,26 +134,26 @@ impl<Behaviors, BeforeFilter> CRUDSeviceDef for SimpleCRUDServiceDef<Behaviors, 
 where
     Behaviors: CRUDBehaviors,
     BeforeFilter: CRUDHook<Ctx = <Behaviors as CRUDBehaviors>::Ctx>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnCreateIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnCreate as Behavior>::In>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnUpdateIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnUpdate as Behavior>::In>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnDeleteIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnDelete as Behavior>::In>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnFindOneIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnFindOne as Behavior>::In>,
-    <<Behaviors as CRUDBehaviors>::OnFindOne as Behavior>::Out:
-        Convertible<<Behaviors as CRUDBehaviors>::OnFindOneOut>,
-    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::OnFindManyIn>:
-        Convertible<<<Behaviors as CRUDBehaviors>::OnFindMany as Behavior>::In>,
-    <<Behaviors as CRUDBehaviors>::OnFindMany as Behavior>::Out:
-        Convertible<<Behaviors as CRUDBehaviors>::OnFindManyOut>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::CreateIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::Create as Behavior>::In>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::UpdateIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::Update as Behavior>::In>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::DeleteIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::Delete as Behavior>::In>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::FindOneIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::FindOne as Behavior>::In>,
+    <<Behaviors as CRUDBehaviors>::FindOne as Behavior>::Out:
+        Convertible<<Behaviors as CRUDBehaviors>::FindOneOut>,
+    WithHookResult<<BeforeFilter as CRUDHook>::HookOut, <Behaviors as CRUDBehaviors>::FindManyIn>:
+        Convertible<<<Behaviors as CRUDBehaviors>::FindMany as Behavior>::In>,
+    <<Behaviors as CRUDBehaviors>::FindMany as Behavior>::Out:
+        Convertible<<Behaviors as CRUDBehaviors>::FindManyOut>,
 {
     type Ctx = Behaviors::Ctx;
 
     #[allow(clippy::type_complexity)]
     type CreateDef = ServiceBaseBuild<
-        <Behaviors as CRUDBehaviors>::OnCreateIn,
+        <Behaviors as CRUDBehaviors>::CreateIn,
         SeqB!(
             <BeforeFilter as CRUDHook>::Hook,
             Lift<<BeforeFilter as CRUDHook>::OnCreate, Self::Ctx>
@@ -161,18 +161,18 @@ where
         Convert<
             WithHookResult<
                 <BeforeFilter as CRUDHook>::HookOut,
-                <Behaviors as CRUDBehaviors>::OnCreateIn,
+                <Behaviors as CRUDBehaviors>::CreateIn,
             >,
-            <<Behaviors as CRUDBehaviors>::OnCreate as Behavior>::In,
+            <<Behaviors as CRUDBehaviors>::Create as Behavior>::In,
         >,
-        Behaviors::OnCreate,
-        Identity<<<Behaviors as CRUDBehaviors>::OnCreate as Behavior>::Out>,
-        <<Behaviors as CRUDBehaviors>::OnCreate as Behavior>::Out,
+        Behaviors::Create,
+        Identity<<<Behaviors as CRUDBehaviors>::Create as Behavior>::Out>,
+        <<Behaviors as CRUDBehaviors>::Create as Behavior>::Out,
     >;
 
     #[allow(clippy::type_complexity)]
     type UpdateDef = ServiceBaseBuild<
-        <Behaviors as CRUDBehaviors>::OnUpdateIn,
+        <Behaviors as CRUDBehaviors>::UpdateIn,
         SeqB!(
             <BeforeFilter as CRUDHook>::Hook,
             Lift<<BeforeFilter as CRUDHook>::OnUpdate, Self::Ctx>
@@ -180,18 +180,18 @@ where
         Convert<
             WithHookResult<
                 <BeforeFilter as CRUDHook>::HookOut,
-                <Behaviors as CRUDBehaviors>::OnUpdateIn,
+                <Behaviors as CRUDBehaviors>::UpdateIn,
             >,
-            <<Behaviors as CRUDBehaviors>::OnUpdate as Behavior>::In,
+            <<Behaviors as CRUDBehaviors>::Update as Behavior>::In,
         >,
-        Behaviors::OnUpdate,
-        Identity<<<Behaviors as CRUDBehaviors>::OnUpdate as Behavior>::Out>,
-        <<Behaviors as CRUDBehaviors>::OnUpdate as Behavior>::Out,
+        Behaviors::Update,
+        Identity<<<Behaviors as CRUDBehaviors>::Update as Behavior>::Out>,
+        <<Behaviors as CRUDBehaviors>::Update as Behavior>::Out,
     >;
 
     #[allow(clippy::type_complexity)]
     type DeleteDef = ServiceBaseBuild<
-        <Behaviors as CRUDBehaviors>::OnDeleteIn,
+        <Behaviors as CRUDBehaviors>::DeleteIn,
         SeqB!(
             <BeforeFilter as CRUDHook>::Hook,
             Lift<<BeforeFilter as CRUDHook>::OnDelete, Self::Ctx>
@@ -199,18 +199,18 @@ where
         Convert<
             WithHookResult<
                 <BeforeFilter as CRUDHook>::HookOut,
-                <Behaviors as CRUDBehaviors>::OnDeleteIn,
+                <Behaviors as CRUDBehaviors>::DeleteIn,
             >,
-            <<Behaviors as CRUDBehaviors>::OnDelete as Behavior>::In,
+            <<Behaviors as CRUDBehaviors>::Delete as Behavior>::In,
         >,
-        Behaviors::OnDelete,
-        Identity<<<Behaviors as CRUDBehaviors>::OnDelete as Behavior>::Out>,
-        <<Behaviors as CRUDBehaviors>::OnDelete as Behavior>::Out,
+        Behaviors::Delete,
+        Identity<<<Behaviors as CRUDBehaviors>::Delete as Behavior>::Out>,
+        <<Behaviors as CRUDBehaviors>::Delete as Behavior>::Out,
     >;
 
     #[allow(clippy::type_complexity)]
     type FindOneDef = ServiceBaseBuild<
-        <Behaviors as CRUDBehaviors>::OnFindOneIn,
+        <Behaviors as CRUDBehaviors>::FindOneIn,
         SeqB!(
             <BeforeFilter as CRUDHook>::Hook,
             Lift<<BeforeFilter as CRUDHook>::OnFindOne, Self::Ctx>
@@ -218,21 +218,21 @@ where
         Convert<
             WithHookResult<
                 <BeforeFilter as CRUDHook>::HookOut,
-                <Behaviors as CRUDBehaviors>::OnFindOneIn,
+                <Behaviors as CRUDBehaviors>::FindOneIn,
             >,
-            <<Behaviors as CRUDBehaviors>::OnFindOne as Behavior>::In,
+            <<Behaviors as CRUDBehaviors>::FindOne as Behavior>::In,
         >,
-        Behaviors::OnFindOne,
+        Behaviors::FindOne,
         Convert<
-            <<Behaviors as CRUDBehaviors>::OnFindOne as Behavior>::Out,
-            <Behaviors as CRUDBehaviors>::OnFindOneOut,
+            <<Behaviors as CRUDBehaviors>::FindOne as Behavior>::Out,
+            <Behaviors as CRUDBehaviors>::FindOneOut,
         >,
-        <Behaviors as CRUDBehaviors>::OnFindOneOut,
+        <Behaviors as CRUDBehaviors>::FindOneOut,
     >;
 
     #[allow(clippy::type_complexity)]
     type FindManyDef = ServiceBaseBuild<
-        <Behaviors as CRUDBehaviors>::OnFindManyIn,
+        <Behaviors as CRUDBehaviors>::FindManyIn,
         SeqB!(
             <BeforeFilter as CRUDHook>::Hook,
             Lift<<BeforeFilter as CRUDHook>::OnFindMany, Self::Ctx>
@@ -240,15 +240,15 @@ where
         Convert<
             WithHookResult<
                 <BeforeFilter as CRUDHook>::HookOut,
-                <Behaviors as CRUDBehaviors>::OnFindManyIn,
+                <Behaviors as CRUDBehaviors>::FindManyIn,
             >,
-            <<Behaviors as CRUDBehaviors>::OnFindMany as Behavior>::In,
+            <<Behaviors as CRUDBehaviors>::FindMany as Behavior>::In,
         >,
-        Behaviors::OnFindMany,
+        Behaviors::FindMany,
         Convert<
-            <<Behaviors as CRUDBehaviors>::OnFindMany as Behavior>::Out,
-            <Behaviors as CRUDBehaviors>::OnFindManyOut,
+            <<Behaviors as CRUDBehaviors>::FindMany as Behavior>::Out,
+            <Behaviors as CRUDBehaviors>::FindManyOut,
         >,
-        <Behaviors as CRUDBehaviors>::OnFindManyOut,
+        <Behaviors as CRUDBehaviors>::FindManyOut,
     >;
 }

@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-pub struct WithIdCreateBehavorDef<Repo>
+pub struct WithIdCreateBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -25,7 +25,7 @@ where
 }
 
 #[async_trait(?Send)]
-impl<Repo> BehaveDef for WithIdCreateBehavorDef<Repo>
+impl<Repo> BehaveDef for WithIdCreateBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -42,7 +42,7 @@ where
     }
 }
 
-pub struct WithIdUpdateBehavorDef<Repo>
+pub struct WithIdUpdateBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -50,7 +50,7 @@ where
 }
 
 #[async_trait(?Send)]
-impl<Repo> BehaveDef for WithIdUpdateBehavorDef<Repo>
+impl<Repo> BehaveDef for WithIdUpdateBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -69,7 +69,7 @@ where
 
 pub struct DeleteId(pub Id);
 
-pub struct WithIdDeleteBehavorDef<Repo>
+pub struct WithIdDeleteBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -77,7 +77,7 @@ where
 }
 
 #[async_trait(?Send)]
-impl<Repo> BehaveDef for WithIdDeleteBehavorDef<Repo>
+impl<Repo> BehaveDef for WithIdDeleteBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -96,7 +96,7 @@ where
 
 pub struct FindOneArgument(pub Document, pub Option<FindOptions>);
 
-pub struct WithIdFindOneBehavorDef<Repo>
+pub struct WithIdFindOneBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -104,7 +104,7 @@ where
 }
 
 #[async_trait(?Send)]
-impl<Repo> BehaveDef for WithIdFindOneBehavorDef<Repo>
+impl<Repo> BehaveDef for WithIdFindOneBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -123,7 +123,7 @@ where
 
 pub struct FindManyArgument(pub Document, pub Option<FindOptions>);
 
-pub struct WithIdFindManyBehavorDef<Repo>
+pub struct WithIdFindManyBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -131,7 +131,7 @@ where
 }
 
 #[async_trait(?Send)]
-impl<Repo> BehaveDef for WithIdFindManyBehavorDef<Repo>
+impl<Repo> BehaveDef for WithIdFindManyBehaviorDef<Repo>
 where
     Repo: RepositoryWithId,
 {
@@ -150,7 +150,13 @@ where
 
 pub type ConvertCursur<T, F> = ConvertibleStream<T, ModelWithIdCursor<F>>;
 
-pub struct WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
+pub type WithIdCreateBehavior<Repo> = Behave<WithIdCreateBehaviorDef<Repo>>;
+pub type WithIdUpdateBehavior<Repo> = Behave<WithIdUpdateBehaviorDef<Repo>>;
+pub type WithIdDeleteBehavior<Repo> = Behave<WithIdDeleteBehaviorDef<Repo>>;
+pub type WithIdFindOneBehavior<Repo> = Behave<WithIdFindOneBehaviorDef<Repo>>;
+pub type WithIdFindManyBehavior<Repo> = Behave<WithIdFindManyBehaviorDef<Repo>>;
+
+pub struct WithIdBehaviors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
 where
     Repo: RepositoryWithId,
 {
@@ -159,24 +165,24 @@ where
 }
 
 impl<Repo, In, Out, OnFindOneIn, OnFindManyIn> CRUDBehaviors
-    for WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
+    for WithIdBehaviors<Repo, In, Out, OnFindOneIn, OnFindManyIn>
 where
     Repo: RepositoryWithId,
     WithId<Repo::Model>: Convertible<Out>,
 {
     type Ctx = Repo::Ctx;
-    type OnCreateIn = In;
-    type OnUpdateIn = WithId<In>;
-    type OnDeleteIn = Id;
-    type OnFindOneIn = OnFindOneIn;
-    type OnFindManyIn = OnFindManyIn;
-    type OnFindOneOut = Option<Out>;
-    type OnFindManyOut = ConvertModelWithIdCursor<Out, Repo::Model>;
-    type OnCreate = Behave<WithIdCreateBehavorDef<Repo>>;
-    type OnUpdate = Behave<WithIdUpdateBehavorDef<Repo>>;
-    type OnDelete = Behave<WithIdDeleteBehavorDef<Repo>>;
-    type OnFindOne = Behave<WithIdFindOneBehavorDef<Repo>>;
-    type OnFindMany = Behave<WithIdFindManyBehavorDef<Repo>>;
+    type CreateIn = In;
+    type UpdateIn = WithId<In>;
+    type DeleteIn = Id;
+    type FindOneIn = OnFindOneIn;
+    type FindManyIn = OnFindManyIn;
+    type FindOneOut = Option<Out>;
+    type FindManyOut = ConvertModelWithIdCursor<Out, Repo::Model>;
+    type Create = WithIdCreateBehavior<Repo>;
+    type Update = WithIdUpdateBehavior<Repo>;
+    type Delete = WithIdDeleteBehavior<Repo>;
+    type FindOne = WithIdFindOneBehavior<Repo>;
+    type FindMany = WithIdFindManyBehavior<Repo>;
 }
 
 pub type WithIdCRUDService<
@@ -187,7 +193,7 @@ pub type WithIdCRUDService<
     OnFindManyIn,
     BeforeFilter = EmptyHook<<Repo as RepositoryWithId>::Ctx>,
 > = CRUDSevice<
-    SimpleCRUDServiceDef<WithIdBehavors<Repo, In, Out, OnFindOneIn, OnFindManyIn>, BeforeFilter>,
+    SimpleCRUDServiceDef<WithIdBehaviors<Repo, In, Out, OnFindOneIn, OnFindManyIn>, BeforeFilter>,
 >;
 
 impl Convertible<DeleteId> for WithHookResult<(), Id> {

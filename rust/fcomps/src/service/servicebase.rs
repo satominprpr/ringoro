@@ -40,6 +40,15 @@ where
     }
 }
 
+impl<H> FromHookResult<H, ()> for ()
+where
+    H: HookResult,
+{
+    fn from_hook_result(_: H, _: ()) -> Result<()> {
+        Ok(())
+    }
+}
+
 pub trait ServiceBaseDef {
     type In;
     type FilterOut;

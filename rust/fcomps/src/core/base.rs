@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use ringoro_utils::result::Result;
 
 pub trait Callable {
@@ -77,6 +79,21 @@ where
         self.result
     }
 }
+
+pub struct PanicDef<In, Out> {
+    p: PhantomData<fn() -> (In, Out)>,
+}
+
+impl<In, Out> Def for PanicDef<In, Out> {
+    type In = In;
+    type Out = Out;
+
+    fn def(_: Self::In) -> Result<Self::Out> {
+        panic!()
+    }
+}
+
+pub type Panic<In, Out> = Call<PanicDef<In, Out>>;
 
 #[cfg(test)]
 mod test_call {

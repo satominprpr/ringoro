@@ -200,7 +200,7 @@ impl Validator for TricoUnitValidator {
         model: &'_ Self::Model,
         ctx: &'_ Self::Ctx,
     ) -> Result<()> {
-        validate_uniqueness! (<Repo> [name] cu, model, ctx);
+        validate_uniqueness! (<TricoUnit, name>, cu, model, ctx);
         Ok(())
     }
 }

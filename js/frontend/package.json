@@ -1,5 +1,5 @@
 {
-  "name": "with-reasonml",
+  "name": "ringoro-frontend",
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",

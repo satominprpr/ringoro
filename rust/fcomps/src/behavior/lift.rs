@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use crate::{
     behavior::Behavior,
-    core::{validate::Identity, Callable},
+    core::{validate::Identity, Callable, Panic},
     result::Result,
 };
 
@@ -39,6 +39,7 @@ where
 }
 
 pub type NoBehave<T, Ctx> = Lift<Identity<T>, Ctx>;
+pub type PanicBehave<In, Out, Ctx> = Lift<Panic<In, Out>, Ctx>;
 
 #[cfg(test)]
 mod test_lift {

@@ -9,6 +9,11 @@ pub struct Config {
     pub port: u16,
     pub db_uri: String,
     pub db_database: String,
+    pub redis_address: String,
+    pub session_key: String,
+    pub twitter_consumer_key: String,
+    pub twitter_consumer_secret: String,
+    pub twitter_redirect_url: String,
 }
 
 fn default_port() -> u16 {
@@ -22,5 +27,9 @@ impl Config {
 
     pub fn bind_name(&self) -> String {
         format!("{host}:{port}", host = self.host, port = self.port)
+    }
+
+    pub fn session_key_bin(&self) -> Result<Vec<u8>> {
+        Ok(hex::decode(&self.session_key)?)
     }
 }

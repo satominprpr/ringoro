@@ -5,4 +5,4 @@ pub mod lift;
 
 pub use base::*;
 pub use composit::*;
-pub use lift::NoBehave;
+pub use lift::{NoBehave, PanicBehave};

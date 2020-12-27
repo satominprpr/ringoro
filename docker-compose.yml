@@ -1,6 +1,14 @@
 version: '3.1'
 
 services:
+  nginx:
+    image: nginx:1.19.6-alpine
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - '8080:80'
+    depends_on:
+      - web
   mongo:
     image: mongo:4
     environment:
@@ -9,8 +17,8 @@ services:
     expose:
       - 27017
     volumes:
-      - ./db:/data/db
-      - ./configdb:/data/configdb
+      - ./docker/db:/data/db
+      - ./docker/configdb:/data/configdb
   mongo-express:
     image: mongo-express
     ports:
@@ -20,28 +28,39 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: example
     depends_on:
       - mongo
+  redis:
+    image: redis:6.2-rc1-alpine3.12
+    expose:
+      - 6379
+    volumes:
+      - ./docker/redis:/data
   web-base: &web-base
     build:
-      context: ./rust
+      context: ./docker/rust
     working_dir: /app
+    container_name: ringoro-rust-base
     volumes:
       - ./rust:/app
       - ./rust/target/.registry:/usr/local/cargo/registry
       - ./rust/target/.cache:/usr/local/cargo/cache
   js-base: &js-base
     build:
-      context: ./js
+      context: ./docker/js
     working_dir: /app
-    volumes:
-      - ./js:/app
+    container_name: ringoro-js-base
   web:
     <<: *web-base
     container_name: ringoro-web
-    environment:
+    environment: &web-env
       RINGORO_HOST: 'web'
-      RINGORO_PORT: '8080'
+      RINGORO_PORT: '80'
       RINGORO_DB_URI: 'mongodb://root:password@mongo:27017'
       RINGORO_DB_DATABASE: 'ringoro-dev'
+      RINGORO_REDIS_ADDRESS: 'redis:6379'
+      RINGORO_SESSION_KEY: '${SESSION_KEY}'
+      RINGORO_TWITTER_CONSUMER_KEY: '${TWITTER_CONSUMER_KEY}'
+      RINGORO_TWITTER_CONSUMER_SECRET: '${TWITTER_CONSUMER_SECRET}'
+      RINGORO_TWITTER_REDIRECT_URL: '${TWITTER_REDIRECT_URL}'
       MONGO_TEST_URI: 'mongodb://root:password@mongo:27017'
       MONGO_TEST_DATABASE: 'ringoro-unittest'
     command: >
@@ -50,34 +69,50 @@ services:
                   -x 'test --all -- --test-threads=1'
                   -x run
     ports:
-      - 8080:8080
+      - 3001:80
     expose:
-      - 8080
+      - 80
     depends_on:
       - mongo-express
+      - redis
   frontend:
     <<: *js-base
-    depends_on: [web]
+    container_name: ringoro-frontend
+    volumes:
+      - ./js/frontend:/app
+    depends_on:
+      - web
     ports:
       - 3000:3000
     expose:
       - 3000
     command: sh -c "rm -f .bsb.lock && yarn dev"
-  test-client-base: &test-client-base
-    build:
-      context: ./test
-    working_dir: /work
-    volumes:
-      - ./test:/work
-    depends_on:
-      - web
-    tty: true
-    stdin_open: true
-    depends_on:
-      - mongo
-  apitest:
-    <<: *test-client-base
-    container_name: ringoro-api-test
+  apitest-web:
+    <<: *web-base
+    container_name: ringoro-apitest-web
     environment:
-      HOST: web
-      PORT: '8080'
+      <<: *web-env
+      RINGORO_HOST: 'apitest-web'
+      RINGORO_DB_DATABASE: 'ringoro-apitest'
+    expose:
+      - 80
+    ports:
+      - 3002:80
+    depends_on:
+      - mongo-express
+      - redis
+    command: >
+      cargo watch -x run
+  apitest:
+    <<: *js-base
+    container_name: ringoro-apitest-frontend
+    volumes:
+      - ./js/api:/app
+    depends_on:
+      - apitest-web
+      - mongo-express
+    environment:
+      RINGORO_DB_URI: 'mongodb://root:password@mongo:27017'
+      RINGORO_DB_DATABASE: 'ringoro-apitest'
+      SERVER_ROOT_URL: 'http://apitest-web'
+    command: sh -c "rm -f .bsb.lock && yarn test:watch"

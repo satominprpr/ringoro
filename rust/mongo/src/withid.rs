@@ -31,7 +31,7 @@ use crate::{
 
 pub type Id = ObjectId;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WithId<M>(pub Id, pub M);
 
 impl<M> HookResult for WithId<M> {}
@@ -390,25 +390,25 @@ where
 pub type ValidatedRepositoryWithId<M, Ctx, V = DefaultValidate<M, Ctx>> =
     RepositoryWithIdBase<M, Ctx, FromValidate<M, Ctx, V>>;
 
-pub async fn _valiidate_uniqueness<Repo>(
+pub async fn _valiidate_uniqueness<M>(
     doc_on_create: Document,
     doc_on_update: impl Fn(Id) -> Document,
-    repo: &Repo,
+    repo: &Repository<M>,
     cu: CreateOrUpdate,
 ) -> Result<()>
 where
-    Repo: RepositoryWithId,
+    M: Model,
 {
     match cu {
         CreateOrUpdate::Create => {
-            if repo.find_one(doc_on_create).await?.is_some() {
+            if repo.find_one(doc_on_create, None).await?.is_some() {
                 Err(simple_error!("not unique on create"))
             } else {
                 Ok(())
             }
         }
         CreateOrUpdate::Update(id) => {
-            if repo.find_one(doc_on_update(id)).await?.is_some() {
+            if repo.find_one(doc_on_update(id), None).await?.is_some() {
                 Err(simple_error!("not unique on update"))
             } else {
                 Ok(())
@@ -419,8 +419,8 @@ where
 
 #[macro_export]
 macro_rules! validate_uniqueness {
-    (<$repo:ty> [$field:ident] $cu:tt, $model:tt, $ctx:tt) => {
-        let repo = <$repo>::new($ctx).await;
+    (<$modeltype:ty, $field:ident>, $cu:expr, $model:expr, $ctx:expr) => {
+        let repo = ($ctx).repo::<$modeltype>();
         $crate::withid::_valiidate_uniqueness(
             mongodm::doc! {
                 stringify!($field): &$model.$field

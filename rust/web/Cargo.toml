@@ -11,12 +11,19 @@ ringoro-fcomps = { path = "../fcomps" }
 ringoro-graphql = { path = "../graphql" }
 actix-web = "3"
 actix-cors = "0.4"
+actix-session = "0.4"
+actix-redis = "0.9"
+actix-identity = "0.3"
+actix-service = "1.0"
 async-trait = "0.1"
 base64 = "0.13"
 bson =  "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+egg-mode = { version = "0.15", default-features = false, features = ["rustls"] }
 env_logger = "0.7.1"
+futures = "0.3"
 image = "0.23"
-juniper = "0.15"
+log = "0.4"
 mongodb = "1.1"
 mongodm = "0.4"
 tokio = { version = "0.2", features = ["full"] }
@@ -24,6 +31,7 @@ serde_json = "1.0"
 serde = "1.0"
 svgtypes = "0.5"
 xmltree = "0.10"
+validator = { version = "0.12", features = ["derive"] }
 
 [dev-dependencies]
 async_once = "0.2"

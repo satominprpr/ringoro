@@ -1,7 +1,0 @@
-require 'rake/testtask'
-
-Rake::TestTask.new(:api) do |t|
-  t.libs << 'api'
-  t.pattern = 'api/**/*_test.rb'
-  t.verbose = true
-end

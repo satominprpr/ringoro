@@ -13,6 +13,7 @@ where
         let m = Context::build_in_test(&uri, &database).await?;
         Arc::new(m)
     };
+    let _ = ctx.database().drop(None).await?;
     let _ = f(Arc::clone(&ctx)).await;
     let _ = ctx.database().drop(None).await?;
     Ok(())
